@@ -1,0 +1,19 @@
+_target_: src.datamodules.tee_datamodule.TEEDataModule
+data_root: ${oc.env:MVQ_DATA_ROOT,${hydra:runtime.cwd}/data}
+train_manifest: ${dataset.data_root}/splits/train.json
+val_manifest: ${dataset.data_root}/splits/val.json
+image_key: image
+target_key: target
+mask_key: mask
+batch_size: 2
+num_workers: 4
+cache_rate: 0.0
+roi_size: [128, 128, 128]
+spacing: null
+intensity_window: null
+sigma: 2.0
+threshold: 0.3
+augment:
+  flip_prob: 0.5
+  rotate90_prob: 0.2
+

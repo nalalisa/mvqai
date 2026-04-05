@@ -1,0 +1,4 @@
+_target_: src.losses.combined_loss.WeightedMSELoss
+foreground_threshold: 0.1
+foreground_weight: 100.0
+

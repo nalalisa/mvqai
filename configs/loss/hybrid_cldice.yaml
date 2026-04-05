@@ -1,0 +1,6 @@
+_target_: src.losses.combined_loss.CombinedLoss
+alpha: 0.7
+mse_weight_scale: 100.0
+cldice_iter: 5
+foreground_threshold: 0.1
+

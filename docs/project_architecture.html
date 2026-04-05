@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MVQ Project Architecture</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --bg-soft: #fbf8f2;
+      --panel: #fffdf9;
+      --panel-strong: #fff8ec;
+      --ink: #1f2933;
+      --muted: #5b6773;
+      --line: #d9d1c3;
+      --accent: #0f766e;
+      --accent-soft: #d5f3ef;
+      --accent-2: #c2410c;
+      --accent-2-soft: #fde7db;
+      --accent-3: #1d4ed8;
+      --shadow: 0 18px 40px rgba(31, 41, 51, 0.08);
+      --radius: 20px;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --sans: "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(194, 65, 12, 0.10), transparent 22%),
+        linear-gradient(180deg, #f8f4ed 0%, #f4f1ea 100%);
+    }
+    a { color: inherit; }
+    .page { width: min(1380px, calc(100vw - 32px)); margin: 0 auto; padding: 28px 0 64px; }
+    .hero {
+      background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(255, 248, 236, 0.96));
+      border: 1px solid rgba(15, 118, 110, 0.15);
+      box-shadow: var(--shadow);
+      border-radius: 28px;
+      padding: 30px;
+      display: grid;
+      grid-template-columns: 1.35fr 0.95fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    h1 {
+      margin: 0 0 14px;
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+      max-width: 76ch;
+    }
+    .hero-stack { display: grid; gap: 14px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .chip {
+      border-radius: 999px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(15, 118, 110, 0.14);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .hero-card {
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(15, 118, 110, 0.12);
+      border-radius: 22px;
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+    }
+    .hero-card h2 { margin: 0; font-size: 18px; }
+    .hero-card ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.7; }
+    .topnav { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 22px; }
+    .topnav a {
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+    }
+    .grid { display: grid; gap: 18px; margin-top: 18px; }
+    .grid.two { grid-template-columns: 1.05fr 0.95fr; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    .panel.strong { background: var(--panel-strong); }
+    .panel h2, .panel h3, .panel h4 { margin-top: 0; }
+    .panel h2 { font-size: 24px; margin-bottom: 14px; }
+    .panel p, .panel li { color: var(--muted); line-height: 1.75; font-size: 15px; }
+    .panel ul, .panel ol { margin: 0; padding-left: 18px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .stat {
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(251,248,242,1));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+    }
+    .stat .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .stat .value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+    .stack-card { display: grid; gap: 12px; }
+    .stack-item {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,244,237,1));
+    }
+    .stack-item .tag {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .tag.teal { color: var(--accent); background: var(--accent-soft); }
+    .tag.orange { color: var(--accent-2); background: var(--accent-2-soft); }
+    .tag.blue { color: var(--accent-3); background: #dbeafe; }
+    .tree {
+      background: #1f2933;
+      color: #e5edf5;
+      border-radius: 18px;
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      overflow: auto;
+      white-space: pre;
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      gap: 12px;
+      align-items: center;
+    }
+    .flow .node {
+      min-height: 108px;
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff, #faf5ed);
+      position: relative;
+    }
+    .flow .node::after {
+      content: "->";
+      position: absolute;
+      right: -18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .flow .node:last-child::after { display: none; }
+    .flow .node .title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .flow .node p { margin: 0; font-size: 14px; line-height: 1.6; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .compare .box {
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,244,237,1));
+    }
+    .compare .box h4 { margin: 0 0 10px; font-size: 16px; }
+    .diagram {
+      border-radius: 20px;
+      background: linear-gradient(180deg, #fcfaf5, #f5efe3);
+      border: 1px solid var(--line);
+      padding: 20px;
+      overflow: auto;
+    }
+    .diagram svg { width: 100%; min-width: 760px; height: auto; display: block; }
+    .code {
+      background: #15202b;
+      color: #ecf3fa;
+      border-radius: 18px;
+      padding: 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.7;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .table th, .table td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .table th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .section-title .mini { color: var(--muted); font-size: 13px; font-weight: 700; }
+    .footer { margin-top: 18px; text-align: center; color: var(--muted); font-size: 13px; padding: 18px 0 8px; }
+    @media (max-width: 1180px) {
+      .hero, .grid.two, .stats, .compare { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .flow .node::after {
+        content: "v";
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: -18px;
+        transform: translateX(-50%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-stack">
+        <div class="eyebrow">Project Visualization</div>
+        <h1>MVQ Architecture Atlas</h1>
+        <p>
+          README 내용을 한 페이지에 시각화한 프로젝트 아키텍처 문서입니다.
+          3D TEE 기반 MV/AoV 정량화 파이프라인을 기준으로, 폴더 구조, 데이터 흐름,
+          모델 계층, loss 설계, Hydra 실험 체계, 현재 중복 구현 상태까지 함께 보여줍니다.
+        </p>
+        <div class="chip-row">
+          <span class="chip">Hydra</span>
+          <span class="chip">PyTorch Lightning</span>
+          <span class="chip">MONAI</span>
+          <span class="chip">Weighted / Masked MSE</span>
+          <span class="chip">Soft-clDice</span>
+          <span class="chip">3D Gaussian Heatmap</span>
+          <span class="chip">Topology-aware Training</span>
+        </div>
+      </div>
+      <aside class="hero-card">
+        <h2>한눈에 보는 핵심 목표</h2>
+        <ul>
+          <li>AoV의 얇고 닫힌 링 구조를 끊기지 않게 학습</li>
+          <li>극단적 class imbalance를 foreground weighting으로 보정</li>
+          <li>Hydra YAML 중심으로 실험 축을 조합하고 재현성 확보</li>
+          <li>MONAI 3D 모델 기반으로 MV/AoV multi-task 확장 준비</li>
+        </ul>
+      </aside>
+    </section>
+
+    <nav class="topnav">
+      <a href="#overview">Overview</a>
+      <a href="#structure">Structure</a>
+      <a href="#flow">Data Flow</a>
+      <a href="#models">Models</a>
+      <a href="#losses">Losses</a>
+      <a href="#configs">Hydra Config</a>
+      <a href="#duplicates">Current State</a>
+      <a href="#runbook">Runbook</a>
+    </nav>
+
+    <section id="overview" class="grid">
+      <div class="stats">
+        <div class="stat">
+          <div class="label">Main Theme</div>
+          <div class="value">AoV</div>
+          <div>얇은 링 구조를 보존하는 topology-aware 3D 학습</div>
+        </div>
+        <div class="stat">
+          <div class="label">Core Supervision</div>
+          <div class="value">Heatmap</div>
+          <div>좌표 회귀 대신 3D Gaussian soft target을 사용</div>
+        </div>
+        <div class="stat">
+          <div class="label">Experiment Engine</div>
+          <div class="value">Hydra</div>
+          <div>모델, loss, sigma, trainer를 코드 수정 없이 스위칭</div>
+        </div>
+        <div class="stat">
+          <div class="label">Training Spine</div>
+          <div class="value">Lightning</div>
+          <div>학습 루프, 로깅, 체크포인트, seed 제어</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <article class="panel strong">
+        <div class="section-title">
+          <h2>문제 정의</h2>
+          <span class="mini">Why This Project Exists</span>
+        </div>
+        <ul>
+          <li>기존 rule-based geometry 파이프라인은 해부학적 변이에 취약합니다.</li>
+          <li>AoV control point를 hard tube mask로 바꾸면 링이 두꺼워지거나 중간이 끊기기 쉽습니다.</li>
+          <li>일반 voxel overlap loss만으로는 중심선 연결성과 닫힌 loop 구조를 충분히 보장하기 어렵습니다.</li>
+          <li>TEE 3D 데이터는 small object, anisotropy, clutter noise가 동시에 존재해 모델이 배경으로 붕괴하기 쉽습니다.</li>
+        </ul>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <h2>설계 원칙</h2>
+          <span class="mini">Design Principles</span>
+        </div>
+        <div class="stack-card">
+          <div class="stack-item">
+            <span class="tag teal">Topology</span>
+            <strong>값만 맞추지 않고 구조까지 맞춘다.</strong>
+          </div>
+          <div class="stack-item">
+            <span class="tag orange">Reproducibility</span>
+            <strong>실험 변경은 코드가 아니라 YAML에서 한다.</strong>
+          </div>
+          <div class="stack-item">
+            <span class="tag blue">Extensibility</span>
+            <strong>AoV heatmap에서 MV/AoV multi-task 구조로 확장 가능해야 한다.</strong>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section id="structure" class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <h2>현재 폴더 구조</h2>
+          <span class="mini">Real Workspace Snapshot</span>
+        </div>
+        <div class="tree">MVQ/
+├── configs/
+│   ├── config.yaml
+│   ├── datamodule/tee_3d.yaml
+│   ├── dataset/tee_3d.yaml
+│   ├── loss/
+│   │   ├── hybrid_cldice.yaml
+│   │   └── masked_mse.yaml
+│   ├── model/
+│   │   ├── attention_unet.yaml
+│   │   ├── dynunet.yaml
+│   │   └── unet.yaml
+│   └── trainer/default.yaml
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── splits/
+│       ├── train.json
+│       └── val.json
+├── docker/Dockerfile
+├── docs/project_architecture.html
+├── scripts/
+│   ├── mrk_to_heatmap.py
+│   └── preprocess_heatmap.py
+├── src/
+│   ├── datamodules/
+│   │   ├── tee_3d.py
+│   │   └── tee_datamodule.py
+│   ├── losses/
+│   │   ├── combined.py
+│   │   ├── combined_loss.py
+│   │   ├── masked_mse.py
+│   │   └── soft_cldice.py
+│   ├── networks/
+│   │   ├── monai_nets.py
+│   │   └── monai_wrappers.py
+│   ├── lightning_module.py
+│   └── train.py
+├── pyproject.toml
+└── README.md</div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <h2>상위 디렉토리 역할</h2>
+          <span class="mini">What Lives Where</span>
+        </div>
+        <div class="stack-card">
+          <div class="stack-item"><span class="tag teal">configs</span>실험 조합과 하이퍼파라미터를 선언하는 제어 계층</div>
+          <div class="stack-item"><span class="tag blue">src</span>DataModule, loss, network wrapper, LightningModule, train entrypoint</div>
+          <div class="stack-item"><span class="tag orange">scripts</span><code>mrk.json -&gt; heatmap</code> 변환 스크립트</div>
+          <div class="stack-item"><span class="tag teal">data</span>원본, 가공본, train/val split manifest 관리</div>
+          <div class="stack-item"><span class="tag blue">docker</span>CUDA / PyTorch / MONAI 환경 고정</div>
+          <div class="stack-item"><span class="tag orange">outputs</span>Hydra 실험 산출물, checkpoint, config snapshot 저장</div>
+        </div>
+      </article>
+    </section>
+
+    <section id="flow" class="grid">
+      <article class="panel">
+        <div class="section-title">
+          <h2>End-to-End 데이터 흐름</h2>
+          <span class="mini">From Markup To Training Metrics</span>
+        </div>
+        <div class="flow">
+          <div class="node"><div class="title">1. Raw Input</div><p>3D TEE volume와 <code>mrk.json</code> control point를 수집합니다.</p></div>
+          <div class="node"><div class="title">2. Spline</div><p>닫힌 B-spline으로 control point를 부드럽게 보간합니다.</p></div>
+          <div class="node"><div class="title">3. Heatmap</div><p>보간 점을 따라 3D Gaussian soft ring target을 렌더링합니다.</p></div>
+          <div class="node"><div class="title">4. Manifest</div><p><code>train.json</code>, <code>val.json</code> 에 image / target 경로를 기록합니다.</p></div>
+          <div class="node"><div class="title">5. DataModule</div><p>MONAI transform으로 crop, flip, scaling, noise를 적용해 batch를 구성합니다.</p></div>
+          <div class="node"><div class="title">6. Network</div><p>UNet, AttentionUnet, DynUNet 중 하나가 dense response volume을 예측합니다.</p></div>
+          <div class="node"><div class="title">7. Objective</div><p>Weighted MSE와 Soft-clDice를 이용해 값과 topology를 동시에 맞춥니다.</p></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <div class="section-title">
+          <h2>학습 파이프라인 다이어그램</h2>
+          <span class="mini">Config-Driven Runtime</span>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 1040 420" xmlns="http://www.w3.org/2000/svg" aria-label="MVQ training architecture diagram">
+            <defs>
+              <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#52606d"/>
+              </marker>
+            </defs>
+            <rect x="28" y="36" width="180" height="92" rx="18" fill="#d5f3ef" stroke="#0f766e"/>
+            <text x="52" y="67" font-size="18" font-weight="700" fill="#0f766e">Hydra Config Groups</text>
+            <text x="52" y="95" font-size="14" fill="#334155">model / loss / datamodule</text>
+            <text x="52" y="116" font-size="14" fill="#334155">trainer / optimizer / logger</text>
+            <rect x="262" y="36" width="188" height="92" rx="18" fill="#fff3e8" stroke="#c2410c"/>
+            <text x="292" y="67" font-size="18" font-weight="700" fill="#c2410c">src/train.py</text>
+            <text x="292" y="95" font-size="14" fill="#334155">seed, logger, callbacks</text>
+            <text x="292" y="116" font-size="14" fill="#334155">instantiate runtime objects</text>
+            <rect x="502" y="28" width="222" height="108" rx="18" fill="#ffffff" stroke="#b6c2cf"/>
+            <text x="532" y="61" font-size="18" font-weight="700" fill="#1f2933">ValveSegmentationTask</text>
+            <text x="532" y="89" font-size="14" fill="#334155">LightningModule</text>
+            <text x="532" y="110" font-size="14" fill="#334155">forward / training_step / validation_step</text>
+            <rect x="776" y="36" width="220" height="92" rx="18" fill="#e0ecff" stroke="#1d4ed8"/>
+            <text x="806" y="67" font-size="18" font-weight="700" fill="#1d4ed8">Trainer.fit()</text>
+            <text x="806" y="95" font-size="14" fill="#334155">checkpoint / log / precision</text>
+            <text x="806" y="116" font-size="14" fill="#334155">distributed runtime</text>
+            <rect x="110" y="232" width="220" height="110" rx="18" fill="#ffffff" stroke="#b6c2cf"/>
+            <text x="140" y="264" font-size="18" font-weight="700" fill="#1f2933">DataModule</text>
+            <text x="140" y="290" font-size="14" fill="#334155">manifest parsing</text>
+            <text x="140" y="311" font-size="14" fill="#334155">MONAI transforms</text>
+            <text x="140" y="332" font-size="14" fill="#334155">batch construction</text>
+            <rect x="408" y="232" width="220" height="110" rx="18" fill="#ffffff" stroke="#b6c2cf"/>
+            <text x="438" y="264" font-size="18" font-weight="700" fill="#1f2933">MONAI Network</text>
+            <text x="438" y="290" font-size="14" fill="#334155">UNet / AttentionUnet</text>
+            <text x="438" y="311" font-size="14" fill="#334155">DynUNet</text>
+            <text x="438" y="332" font-size="14" fill="#334155">dense 3D response map</text>
+            <rect x="706" y="232" width="240" height="110" rx="18" fill="#ffffff" stroke="#b6c2cf"/>
+            <text x="736" y="264" font-size="18" font-weight="700" fill="#1f2933">Hybrid Objective</text>
+            <text x="736" y="290" font-size="14" fill="#334155">Weighted / Masked MSE</text>
+            <text x="736" y="311" font-size="14" fill="#334155">Soft-clDice</text>
+            <text x="736" y="332" font-size="14" fill="#334155">Dice / topology proxy logging</text>
+            <line x1="208" y1="82" x2="262" y2="82" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="450" y1="82" x2="502" y2="82" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="724" y1="82" x2="776" y2="82" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="614" y1="136" x2="614" y2="182" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="220" y1="232" x2="220" y2="174" stroke="#52606d" stroke-width="2.5"/>
+            <line x1="220" y1="174" x2="560" y2="174" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="330" y1="287" x2="408" y2="287" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="628" y1="287" x2="706" y2="287" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
+          </svg>
+        </div>
+      </article>
+    </section>
+
+    <section id="models" class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <h2>모델 계층</h2>
+          <span class="mini">Backbone Choices</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Config</th>
+              <th>When It Helps</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>UNet</strong></td>
+              <td><code>configs/model/unet.yaml</code></td>
+              <td>안정적인 baseline. heatmap regression을 시작할 때 기준점 역할을 합니다.</td>
+            </tr>
+            <tr>
+              <td><strong>AttentionUnet</strong></td>
+              <td><code>configs/model/attention_unet.yaml</code></td>
+              <td>작고 중요한 구조를 강조하고, background clutter를 억제할 가능성이 큽니다.</td>
+            </tr>
+            <tr>
+              <td><strong>DynUNet</strong></td>
+              <td><code>configs/model/dynunet.yaml</code></td>
+              <td>비등방성 축 해상도에 대응하기 좋고, 층별 비대칭 stride 설정이 가능합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          현재 래퍼 파일은 <code>src/networks/monai_wrappers.py</code> 와
+          <code>src/networks/monai_nets.py</code> 두 경로가 공존합니다.
+          둘 다 MONAI 모델을 얇게 감싸는 thin wrapper이며, 향후 하나로 통합하기 쉽습니다.
+        </p>
+      </article>
+      <article class="panel strong">
+        <div class="section-title">
+          <h2>왜 Wrapper를 두는가</h2>
+          <span class="mini">Abstraction Benefits</span>
+        </div>
+        <ul>
+          <li>Hydra <code>_target_</code> 경로를 프로젝트 내부 명명 규칙으로 통일할 수 있습니다.</li>
+          <li>향후 multi-head output, shared encoder, task-specific decoder를 추가하기 쉬워집니다.</li>
+          <li>activation이나 post-processing 정책을 네트워크 레벨에서 통일할 수 있습니다.</li>
+          <li>MONAI 클래스를 직접 노출하는 대신 실험 아키텍처의 표준 진입점을 만들 수 있습니다.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section id="losses" class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <h2>Loss 설계</h2>
+          <span class="mini">Value + Topology</span>
+        </div>
+        <div class="stack-card">
+          <div class="stack-item"><span class="tag teal">Weighted / Masked MSE</span>foreground voxel에 큰 가중치를 부여해 작은 링 구조가 배경에 묻히지 않게 합니다.</div>
+          <div class="stack-item"><span class="tag orange">Soft-clDice</span>skeleton 기반 유사도를 이용해 끊어진 링과 구조 붕괴를 더 직접적으로 벌줍니다.</div>
+          <div class="stack-item"><span class="tag blue">Combined Loss</span><code>L = alpha * MSE + (1 - alpha) * clDice</code> 로 intensity fidelity와 connectivity를 같이 최적화합니다.</div>
+        </div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <h2>Loss 구현의 두 경로</h2>
+          <span class="mini">Current Coexisting Paths</span>
+        </div>
+        <div class="compare">
+          <div class="box">
+            <h4>통합형 경로</h4>
+            <p><code>src/losses/combined_loss.py</code></p>
+            <ul>
+              <li><code>WeightedMSELoss</code></li>
+              <li><code>SoftClDiceLoss</code></li>
+              <li><code>CombinedLoss</code></li>
+            </ul>
+            <p>구조가 단순해 빠르게 baseline을 시작하기 좋습니다.</p>
+          </div>
+          <div class="box">
+            <h4>분리형 경로</h4>
+            <p><code>masked_mse.py</code> + <code>soft_cldice.py</code> + <code>combined.py</code></p>
+            <ul>
+              <li>mask-aware supervision을 더 직접적으로 지원</li>
+              <li>loss 모듈별 교체와 분석이 쉬움</li>
+              <li>실험 확장성 측면에서 더 유연함</li>
+            </ul>
+            <p>현재는 연구 진행 과정에서 두 버전이 함께 존재합니다.</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <div class="section-title">
+          <h2>Loss와 모델의 관계</h2>
+          <span class="mini">Why This Combination Matters</span>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 1040 240" xmlns="http://www.w3.org/2000/svg" aria-label="Loss relationship diagram">
+            <defs>
+              <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#52606d"/>
+              </marker>
+            </defs>
+            <rect x="40" y="60" width="220" height="110" rx="18" fill="#dbeafe" stroke="#1d4ed8"/>
+            <text x="70" y="95" font-size="20" font-weight="700" fill="#1d4ed8">Model Output</text>
+            <text x="70" y="123" font-size="14" fill="#334155">3D dense response map</text>
+            <text x="70" y="144" font-size="14" fill="#334155">AoV ring probability / intensity</text>
+            <rect x="350" y="20" width="250" height="88" rx="18" fill="#d5f3ef" stroke="#0f766e"/>
+            <text x="380" y="54" font-size="18" font-weight="700" fill="#0f766e">Weighted / Masked MSE</text>
+            <text x="380" y="81" font-size="14" fill="#334155">foreground fidelity</text>
+            <text x="380" y="100" font-size="14" fill="#334155">small-object survival</text>
+            <rect x="350" y="132" width="250" height="88" rx="18" fill="#fff3e8" stroke="#c2410c"/>
+            <text x="380" y="166" font-size="18" font-weight="700" fill="#c2410c">Soft-clDice</text>
+            <text x="380" y="193" font-size="14" fill="#334155">skeleton connectivity</text>
+            <text x="380" y="212" font-size="14" fill="#334155">topology preservation</text>
+            <rect x="700" y="60" width="290" height="110" rx="18" fill="#fff" stroke="#b6c2cf"/>
+            <text x="730" y="95" font-size="20" font-weight="700" fill="#1f2933">Hybrid Objective</text>
+            <text x="730" y="122" font-size="14" fill="#334155">alpha * MSE + (1 - alpha) * clDice</text>
+            <text x="730" y="143" font-size="14" fill="#334155">값의 정확도와 위상 보존을 동시에 최적화</text>
+            <line x1="260" y1="96" x2="350" y2="64" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow2)"/>
+            <line x1="260" y1="134" x2="350" y2="176" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow2)"/>
+            <line x1="600" y1="64" x2="700" y2="96" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow2)"/>
+            <line x1="600" y1="176" x2="700" y2="134" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow2)"/>
+          </svg>
+        </div>
+      </article>
+    </section>
+
+    <section id="configs" class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <h2>Hydra 그룹 설계</h2>
+          <span class="mini">Experiment Control Plane</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>Group</th><th>What It Controls</th><th>Typical Questions</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>model</strong></td><td>네트워크 백본과 구조</td><td>UNet인가, AttentionUnet인가, DynUNet인가?</td></tr>
+            <tr><td><strong>loss</strong></td><td>목적 함수와 weighting</td><td>alpha를 얼마나 topology 쪽으로 줄 것인가?</td></tr>
+            <tr><td><strong>datamodule / dataset</strong></td><td>데이터 스키마, transform, batch 로딩</td><td>image+label인가, image+target+mask인가?</td></tr>
+            <tr><td><strong>trainer</strong></td><td>epoch, precision, devices, clip, determinism</td><td>재현성을 더 볼까, 속도를 더 볼까?</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <article class="panel strong">
+        <div class="section-title">
+          <h2>Hydra가 중요한 이유</h2>
+          <span class="mini">Why Config Beats Hardcoded Experiments</span>
+        </div>
+        <ul>
+          <li>논문 실험 표를 만들 때 코드 분기를 만들지 않아도 됩니다.</li>
+          <li>loss 조합, sigma, backbone, precision 변경을 모두 커맨드라인 오버라이드로 처리할 수 있습니다.</li>
+          <li>실험 출력 디렉토리가 분리되어 config snapshot과 결과를 함께 보존할 수 있습니다.</li>
+          <li>같은 코드베이스로 baseline과 ablation을 빠르게 돌릴 수 있습니다.</li>
+        </ul>
+        <div class="code">python src/train.py -m loss.alpha=0.3,0.5,0.7
+python src/train.py -m model=unet,attention_unet
+python src/train.py -m dataset.sigma=1.0,2.0,3.0</div>
+      </article>
+    </section>
+
+    <section class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <h2>데이터 스키마 1</h2>
+          <span class="mini">Simple Manifest</span>
+        </div>
+        <p>빠르게 baseline을 시작하는 단순형 경로입니다. 주로 <code>src/datamodules/tee_3d.py</code> 와 연결됩니다.</p>
+        <div class="code">[
+  {
+    "image": "C:/path/to/patient_01_image.nii.gz",
+    "label": "C:/path/to/patient_01_heatmap.nii.gz"
+  }
+]</div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <h2>데이터 스키마 2</h2>
+          <span class="mini">Mask-Aware Manifest</span>
+        </div>
+        <p>ROI-aware supervision과 더 복잡한 loss 설계에 적합한 확장형 경로입니다. <code>src/datamodules/tee_datamodule.py</code> 와 잘 맞습니다.</p>
+        <div class="code">[
+  {
+    "image": "images/case001.nrrd",
+    "target": "targets/case001_heatmap.nrrd",
+    "mask": "masks/case001_roi.nrrd"
+  }
+]</div>
+      </article>
+    </section>
+
+    <section id="duplicates" class="grid two">
+      <article class="panel strong">
+        <div class="section-title">
+          <h2>현재 코드 상태</h2>
+          <span class="mini">Research Scaffold, Not Finalized Product</span>
+        </div>
+        <p>현재 저장소는 완전히 단일 경로로 정리된 production 코드라기보다, 연구를 빠르게 진행하기 위한 스캐폴드와 대안 구현이 함께 존재하는 상태입니다.</p>
+        <ul>
+          <li>DataModule 두 경로가 공존합니다.</li>
+          <li>Loss 구현도 통합형과 분리형이 함께 있습니다.</li>
+          <li>Heatmap 생성기도 NRRD/NIfTI 두 포맷 흐름이 남아 있습니다.</li>
+          <li>Network wrapper 파일도 두 버전이 존재합니다.</li>
+        </ul>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <h2>정리 방향</h2>
+          <span class="mini">Recommended Consolidation Path</span>
+        </div>
+        <ol>
+          <li>manifest 표준을 하나로 확정합니다.</li>
+          <li>loss activation 정책과 mask 지원 여부를 기준으로 한 계열로 통합합니다.</li>
+          <li>network wrapper를 하나의 파일로 정리합니다.</li>
+          <li>heatmap 출력 포맷을 <code>.nrrd</code> 또는 <code>.nii.gz</code> 중 하나로 정합니다.</li>
+          <li>그 뒤 README와 HTML 문서를 표준 경로 중심으로 다시 단순화합니다.</li>
+        </ol>
+      </article>
+    </section>
+
+    <section id="runbook" class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <h2>실행 순서</h2>
+          <span class="mini">Practical Runbook</span>
+        </div>
+        <div class="code">pip install -e .
+
+python scripts/mrk_to_heatmap.py ^
+  --input data/raw/case001.mrk.json ^
+  --output data/processed/case001_heatmap.nrrd ^
+  --shape 128 128 128 ^
+  --sigma 2.0
+
+python src/train.py
+
+python src/train.py -m loss.alpha=0.3,0.5,0.7
+python src/train.py -m model=unet,attention_unet</div>
+      </article>
+      <article class="panel strong">
+        <div class="section-title">
+          <h2>다음 실험 후보</h2>
+          <span class="mini">Suggested Research Steps</span>
+        </div>
+        <ul>
+          <li><strong>alpha sweep:</strong> 값 정확도와 topology 보존 사이의 최적 균형 탐색</li>
+          <li><strong>sigma sweep:</strong> heatmap thickness가 학습 안정성에 미치는 영향 확인</li>
+          <li><strong>architecture ablation:</strong> UNet, AttentionUnet, DynUNet 비교</li>
+          <li><strong>mask-aware loss:</strong> ROI 제한 supervision으로 false positive 감소 여부 확인</li>
+          <li><strong>qualitative logging:</strong> WandB media로 끊어진 ring 사례를 직접 모니터링</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <div class="section-title">
+          <h2>이 HTML 문서의 용도</h2>
+          <span class="mini">How To Use This Page</span>
+        </div>
+        <ul>
+          <li>팀 온보딩 시 프로젝트의 전체 구조를 한 페이지에서 설명하는 문서로 사용</li>
+          <li>README를 읽기 전에 상위 구조와 실험 흐름을 직관적으로 이해하는 입문 자료로 사용</li>
+          <li>모델, loss, 데이터 스키마, 중복 구현 상태를 빠르게 리뷰하는 설계 지도 역할</li>
+          <li>향후 표준 경로로 리팩터링할 때, 어떤 계층을 먼저 통합할지 의사결정하는 기준 문서로 사용</li>
+        </ul>
+      </article>
+    </section>
+
+    <div class="footer">
+      MVQ project architecture visualization generated from the current README and repository layout.
+    </div>
+  </div>
+</body>
+</html>

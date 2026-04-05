@@ -1,0 +1,36 @@
+defaults:
+  - model: unet
+  - dataset: tee_3d
+  - loss: hybrid_cldice
+  - trainer: default
+  - _self_
+
+seed: 42
+experiment_name: mvq-baseline
+
+task:
+  _target_: src.lightning_module.ValveSegmentationTask
+  model_cfg: ${model}
+  loss_cfg: ${loss}
+  optimizer_cfg:
+    _target_: torch.optim.AdamW
+    lr: 2.0e-4
+    weight_decay: 1.0e-4
+  scheduler_cfg:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    T_max: ${trainer.max_epochs}
+  threshold: 0.3
+
+logger:
+  backend: csv
+  project: mvq
+  save_dir: ${hydra:runtime.output_dir}
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}_${experiment_name}
+  sweep:
+    dir: outputs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}_${hydra.job.override_dirname}
+  job:
+    chdir: false
