@@ -387,11 +387,9 @@
 │   │   └── tee_datamodule.py
 │   ├── losses/
 │   │   ├── combined.py
-│   │   ├── combined_loss.py
 │   │   ├── masked_mse.py
 │   │   └── soft_cldice.py
 │   ├── networks/
-│   │   ├── monai_nets.py
 │   │   └── monai_wrappers.py
 │   ├── lightning_module.py
 │   └── train.py
@@ -405,7 +403,7 @@
         </div>
         <div class="stack-card">
           <div class="stack-item"><span class="tag teal">configs</span>실험 조합과 하이퍼파라미터를 선언하는 제어 계층</div>
-          <div class="stack-item"><span class="tag blue">src</span>DataModule, loss, network wrapper, LightningModule, train entrypoint</div>
+          <div class="stack-item"><span class="tag blue">src</span>DataModule, 최소 custom loss, LightningModule, train entrypoint</div>
           <div class="stack-item"><span class="tag orange">scripts</span><code>mrk.json -&gt; heatmap</code> 변환 스크립트</div>
           <div class="stack-item"><span class="tag teal">data</span>원본, 가공본, train/val split manifest 관리</div>
           <div class="stack-item"><span class="tag blue">docker</span>CUDA / PyTorch / MONAI 환경 고정</div>
@@ -426,8 +424,8 @@
           <div class="node"><div class="title">3. Heatmap</div><p>보간 점을 따라 3D Gaussian soft ring target을 렌더링합니다.</p></div>
           <div class="node"><div class="title">4. Manifest</div><p><code>train.json</code>, <code>val.json</code> 에 image / target 경로를 기록합니다.</p></div>
           <div class="node"><div class="title">5. DataModule</div><p>MONAI transform으로 crop, flip, scaling, noise를 적용해 batch를 구성합니다.</p></div>
-          <div class="node"><div class="title">6. Network</div><p>UNet, AttentionUnet, DynUNet 중 하나가 dense response volume을 예측합니다.</p></div>
-          <div class="node"><div class="title">7. Objective</div><p>Weighted MSE와 Soft-clDice를 이용해 값과 topology를 동시에 맞춥니다.</p></div>
+          <div class="node"><div class="title">6. Network</div><p>Hydra가 MONAI UNet, AttentionUnet, DynUNet 중 하나를 직접 instantiate합니다.</p></div>
+          <div class="node"><div class="title">7. Objective</div><p>Masked MSE와 MONAI Soft-clDice 기반 objective로 값과 topology를 동시에 맞춥니다.</p></div>
         </div>
       </article>
     </section>
@@ -474,7 +472,7 @@
             <rect x="706" y="232" width="240" height="110" rx="18" fill="#ffffff" stroke="#b6c2cf"/>
             <text x="736" y="264" font-size="18" font-weight="700" fill="#1f2933">Hybrid Objective</text>
             <text x="736" y="290" font-size="14" fill="#334155">Weighted / Masked MSE</text>
-            <text x="736" y="311" font-size="14" fill="#334155">Soft-clDice</text>
+            <text x="736" y="311" font-size="14" fill="#334155">MONAI Soft-clDice</text>
             <text x="736" y="332" font-size="14" fill="#334155">Dice / topology proxy logging</text>
             <line x1="208" y1="82" x2="262" y2="82" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
             <line x1="450" y1="82" x2="502" y2="82" stroke="#52606d" stroke-width="2.5" marker-end="url(#arrow)"/>
@@ -522,21 +520,19 @@
           </tbody>
         </table>
         <p>
-          현재 래퍼 파일은 <code>src/networks/monai_wrappers.py</code> 와
-          <code>src/networks/monai_nets.py</code> 두 경로가 공존합니다.
-          둘 다 MONAI 모델을 얇게 감싸는 thin wrapper이며, 향후 하나로 통합하기 쉽습니다.
+          현재 기본 모델 경로는 wrapper가 아니라 MONAI 클래스를 YAML에서 직접 instantiate하는 방식입니다.
+          <code>src/networks/monai_wrappers.py</code> 는 향후 multi-head 확장에 대비한 thin wrapper로만 남아 있습니다.
         </p>
       </article>
       <article class="panel strong">
         <div class="section-title">
-          <h2>왜 Wrapper를 두는가</h2>
+          <h2>왜 Wrapper를 남겨두는가</h2>
           <span class="mini">Abstraction Benefits</span>
         </div>
         <ul>
-          <li>Hydra <code>_target_</code> 경로를 프로젝트 내부 명명 규칙으로 통일할 수 있습니다.</li>
           <li>향후 multi-head output, shared encoder, task-specific decoder를 추가하기 쉬워집니다.</li>
           <li>activation이나 post-processing 정책을 네트워크 레벨에서 통일할 수 있습니다.</li>
-          <li>MONAI 클래스를 직접 노출하는 대신 실험 아키텍처의 표준 진입점을 만들 수 있습니다.</li>
+          <li>현재 기본 경로는 MONAI 직접 사용이지만, wrapper는 확장용 안전지대로 남겨둘 수 있습니다.</li>
         </ul>
       </article>
     </section>
@@ -548,36 +544,34 @@
           <span class="mini">Value + Topology</span>
         </div>
         <div class="stack-card">
-          <div class="stack-item"><span class="tag teal">Weighted / Masked MSE</span>foreground voxel에 큰 가중치를 부여해 작은 링 구조가 배경에 묻히지 않게 합니다.</div>
-          <div class="stack-item"><span class="tag orange">Soft-clDice</span>skeleton 기반 유사도를 이용해 끊어진 링과 구조 붕괴를 더 직접적으로 벌줍니다.</div>
+          <div class="stack-item"><span class="tag teal">Masked MSE</span>foreground voxel에 큰 가중치를 부여해 작은 링 구조가 배경에 묻히지 않게 합니다.</div>
+          <div class="stack-item"><span class="tag orange">MONAI Soft-clDice</span>skeleton 기반 유사도를 이용해 끊어진 링과 구조 붕괴를 더 직접적으로 벌줍니다.</div>
           <div class="stack-item"><span class="tag blue">Combined Loss</span><code>L = alpha * MSE + (1 - alpha) * clDice</code> 로 intensity fidelity와 connectivity를 같이 최적화합니다.</div>
         </div>
       </article>
       <article class="panel">
         <div class="section-title">
-          <h2>Loss 구현의 두 경로</h2>
-          <span class="mini">Current Coexisting Paths</span>
+          <h2>Loss 계층 구성</h2>
+          <span class="mini">Library First, Minimal Custom Glue</span>
         </div>
         <div class="compare">
           <div class="box">
-            <h4>통합형 경로</h4>
-            <p><code>src/losses/combined_loss.py</code></p>
+            <h4>라이브러리 우선</h4>
+            <p><code>src/losses/soft_cldice.py</code></p>
             <ul>
-              <li><code>WeightedMSELoss</code></li>
-              <li><code>SoftClDiceLoss</code></li>
-              <li><code>CombinedLoss</code></li>
+              <li>실제 clDice 계산은 MONAI <code>SoftclDiceLoss</code> 사용</li>
+              <li>프로젝트에서는 sigmoid / mask 처리만 얇게 감쌈</li>
             </ul>
-            <p>구조가 단순해 빠르게 baseline을 시작하기 좋습니다.</p>
+            <p>직접 morphology를 다시 구현하지 않고 MONAI 기본 loss를 사용합니다.</p>
           </div>
           <div class="box">
-            <h4>분리형 경로</h4>
-            <p><code>masked_mse.py</code> + <code>soft_cldice.py</code> + <code>combined.py</code></p>
+            <h4>정말 필요한 최소 custom</h4>
+            <p><code>masked_mse.py</code> + <code>combined.py</code></p>
             <ul>
-              <li>mask-aware supervision을 더 직접적으로 지원</li>
-              <li>loss 모듈별 교체와 분석이 쉬움</li>
-              <li>실험 확장성 측면에서 더 유연함</li>
+              <li>foreground-weighted masked MSE는 MONAI에 그대로 없어서 유지</li>
+              <li>CombinedLoss는 두 loss를 조합하는 orchestration 역할만 담당</li>
             </ul>
-            <p>현재는 연구 진행 과정에서 두 버전이 함께 존재합니다.</p>
+            <p>즉, 직접 구현은 프로젝트 특화 glue 코드에만 한정됩니다.</p>
           </div>
         </div>
       </article>
@@ -605,7 +599,7 @@
             <text x="380" y="81" font-size="14" fill="#334155">foreground fidelity</text>
             <text x="380" y="100" font-size="14" fill="#334155">small-object survival</text>
             <rect x="350" y="132" width="250" height="88" rx="18" fill="#fff3e8" stroke="#c2410c"/>
-            <text x="380" y="166" font-size="18" font-weight="700" fill="#c2410c">Soft-clDice</text>
+            <text x="380" y="166" font-size="18" font-weight="700" fill="#c2410c">MONAI Soft-clDice</text>
             <text x="380" y="193" font-size="14" fill="#334155">skeleton connectivity</text>
             <text x="380" y="212" font-size="14" fill="#334155">topology preservation</text>
             <rect x="700" y="60" width="290" height="110" rx="18" fill="#fff" stroke="#b6c2cf"/>
@@ -695,9 +689,9 @@ python src/train.py -m dataset.sigma=1.0,2.0,3.0</div>
         <p>현재 저장소는 완전히 단일 경로로 정리된 production 코드라기보다, 연구를 빠르게 진행하기 위한 스캐폴드와 대안 구현이 함께 존재하는 상태입니다.</p>
         <ul>
           <li>DataModule 두 경로가 공존합니다.</li>
-          <li>Loss 구현도 통합형과 분리형이 함께 있습니다.</li>
-          <li>Heatmap 생성기도 NRRD/NIfTI 두 포맷 흐름이 남아 있습니다.</li>
-          <li>Network wrapper 파일도 두 버전이 존재합니다.</li>
+          <li>Heatmap 생성기는 NRRD/NIfTI 두 포맷 흐름이 남아 있습니다.</li>
+          <li>DataModule은 단순형과 mask-aware형 두 경로가 공존합니다.</li>
+          <li>모델은 MONAI 직접 instantiate, loss는 MONAI 우선 + 최소 custom glue 원칙으로 정리됐습니다.</li>
         </ul>
       </article>
       <article class="panel">
@@ -707,10 +701,10 @@ python src/train.py -m dataset.sigma=1.0,2.0,3.0</div>
         </div>
         <ol>
           <li>manifest 표준을 하나로 확정합니다.</li>
-          <li>loss activation 정책과 mask 지원 여부를 기준으로 한 계열로 통합합니다.</li>
-          <li>network wrapper를 하나의 파일로 정리합니다.</li>
+          <li>datamodule 표준 경로를 하나로 확정합니다.</li>
+          <li>heatmap 출력 포맷을 하나로 정리합니다.</li>
           <li>heatmap 출력 포맷을 <code>.nrrd</code> 또는 <code>.nii.gz</code> 중 하나로 정합니다.</li>
-          <li>그 뒤 README와 HTML 문서를 표준 경로 중심으로 다시 단순화합니다.</li>
+          <li>그 뒤 README와 HTML 문서를 현재 표준 경로 중심으로 더 단순화합니다.</li>
         </ol>
       </article>
     </section>

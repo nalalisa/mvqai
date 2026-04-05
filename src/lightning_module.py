@@ -5,6 +5,7 @@ from typing import Any
 import torch
 from hydra.utils import instantiate
 from lightning import LightningModule
+from monai.metrics import DiceMetric
 from torch import nn
 
 from src.losses.soft_cldice import SoftCLDiceLoss
@@ -26,16 +27,11 @@ class ValveSegmentationTask(LightningModule):
         self.optimizer_cfg = optimizer_cfg
         self.scheduler_cfg = scheduler_cfg
         self.threshold = threshold
-        self.topology_proxy = SoftCLDiceLoss(iterations=10, smooth=1.0)
+        self.topology_proxy = SoftCLDiceLoss(iter_=10, smooth=1.0, sigmoid=True)
+        self.dice_metric = DiceMetric(include_background=True, reduction="mean")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
-
-    def _dice_score(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        dims = tuple(range(1, preds.ndim))
-        intersection = (preds * targets).sum(dim=dims)
-        denominator = preds.sum(dim=dims) + targets.sum(dim=dims)
-        return ((2.0 * intersection + 1.0e-6) / (denominator + 1.0e-6)).mean()
 
     def _shared_step(self, batch: dict[str, torch.Tensor], stage: str) -> torch.Tensor:
         inputs = batch["image"]
@@ -48,7 +44,9 @@ class ValveSegmentationTask(LightningModule):
         probs = torch.sigmoid(outputs)
         pred_bin = (probs > self.threshold).float()
         target_bin = (targets > self.threshold).float()
-        dice = self._dice_score(pred_bin, target_bin)
+        self.dice_metric(pred_bin, target_bin)
+        dice = self.dice_metric.aggregate()
+        self.dice_metric.reset()
         topology_score = 1.0 - self.topology_proxy(outputs, targets, mask=mask)
 
         self.log(f"{stage}/loss", loss, prog_bar=(stage == "val"), sync_dist=True, batch_size=inputs.shape[0])

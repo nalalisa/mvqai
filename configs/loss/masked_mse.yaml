@@ -1,4 +1,3 @@
-_target_: src.losses.combined_loss.WeightedMSELoss
-foreground_threshold: 0.1
+_target_: src.losses.masked_mse.MaskedMSELoss
 foreground_weight: 100.0
-
+sigmoid: true
